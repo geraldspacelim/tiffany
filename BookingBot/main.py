@@ -10,8 +10,9 @@ import json
 
 load_dotenv()
 TOKEN = os.getenv('TOKEN')
+ACCESS_TOKEN = os.getenv('ACCESS_TOKEN')
 bot = telebot.TeleBot(TOKEN, parse_mode="MARKDOWN")
-logger = telebot.logger.setLevel(logging.DEBUG)
+# logger = telebot.logger.setLevel(logging.DEBUG)
 
 user_dict = {}
 bot_name = "Booking"
@@ -33,7 +34,8 @@ def process_name_step(message):
         "userId": chat_id, 
         "username": name, 
     }
-    requests.post(url="http://localhost:3306/api/newUser", data=data)  
+    requests.post(url="http://localhost:3306/api/newUser", data=json.dumps(data),  headers={'Content-Type':'application/json',
+               'Authorization': 'Bearer {}'.format(ACCESS_TOKEN)})  
     bot.send_message(chat_id, f"Name saved successfully. Thank you {name}. Press /book to start booking a slot.")
 
 
@@ -84,7 +86,8 @@ def process_reason_step(message):
                             message.chat.id)
 
 def checkDuplicate(userId, date):
-    data = requests.get(url="http://localhost:3306/api/checkDuplicate", params={"userId": userId, "date": date})
+    data = requests.get(url="http://localhost:3306/api/checkDuplicate", params={"userId": userId, "date": date},  headers={'Content-Type':'application/json',
+               'Authorization': 'Bearer {}'.format(ACCESS_TOKEN)})
     if json.loads(data.content)[0]['count(dateApplied)'] == 1: 
         return True 
     else:
@@ -92,23 +95,18 @@ def checkDuplicate(userId, date):
         
 
 def newRequest(userId, reason, result):
+    result = str(result)
     data = {
         "userId": userId,
         "reason": reason,
         "dateApplied": result
     } 
-    requests.post(url="http://localhost:3306/api/newRequest", data=data) 
-    updateSlots(result)
-
-
-def updateSlots(date): 
-    data = {
-        "date": date 
-    }
-    requests.post(url="http://localhost:3306/api/reduceCount", data=data) 
+    requests.post(url="http://localhost:3306/api/newRequest", data=json.dumps(data),  headers={'Content-Type':'application/json',
+               'Authorization': 'Bearer {}'.format(ACCESS_TOKEN)}) 
     
 def checkForSlots(userId, date): 
-    data = requests.get(url="http://localhost:3306/api/availableSlots", params={"date": date})
+    data = requests.get(url=f"http://localhost:3306/api/availableSlots/{date}",  headers={'Content-Type':'application/json',
+               'Authorization': 'Bearer {}'.format(ACCESS_TOKEN)})
     availableSlots = json.loads(data.content)[0]['availableSlots']
     if availableSlots != 0:
         return True 
@@ -117,12 +115,16 @@ def checkForSlots(userId, date):
 @bot.message_handler(commands=['list'])
 def list_requests(message):
     chat_id = message.chat.id
-    data = requests.get(url="http://localhost:3306/api/getMyRequests", params={"userId": chat_id})
+    data = requests.get(url=f"http://localhost:3306/api/getMyRequests/{chat_id}",  headers={'Content-Type':'application/json',
+               'Authorization': 'Bearer {}'.format(ACCESS_TOKEN)})
     data_obj = json.loads(data.content) 
     requests_list = ""
-    for i in data_obj:
-        requests_list += f"*Date*: {i['dateApplied']}\n*Status*: {i['status']}\n\n"
-    bot.send_message(chat_id, requests_list)
+    if len(data_obj) > 0: 
+        for i in data_obj:
+            requests_list += f"*Date*: {i['dateApplied']}\n*Status*: {i['status']}\n\n"
+        bot.send_message(chat_id, requests_list)
+    else: 
+        bot.send_message(chat_id, "You do not have any requests.")
 
 bot.polling()
 
@@ -133,5 +135,3 @@ bot.polling()
 # #         logger.error(e)
 # #         time.sleep(15)
 
-# data = requests.get(url="http://localhost:3306/api/availableSlots", params={"date": '2021-05-04'})
-# print(json.loads(data.content)[0]['availableSlots'])

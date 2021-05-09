@@ -1,24 +1,26 @@
 const express = require('express')
 const sql = require("./connection")
 const {nanoid} = require('nanoid')
+var jwt = require('jsonwebtoken');
+var cors = require('cors')
 
 require('dotenv').config();
 
 const app = express()
 const port = process.env.PORT || 3000
 
-// Setup static directory to serve 
+app.use(cors({origin:true,credentials: true}));
 app.use(express.json());
 app.use(express.urlencoded({extended: true}));
 
-app.get('/api/getUsers', (req, res) => {
-    sql.query(`select * from users`, (error, result)=> {
+app.get('/api/allRequests', authenticateToken, (req, res) => {
+    sql.query(`select requests.uuid, requests.userId, users.username, requests.dateApplied, requests.reason, requests.status from requests inner join users on requests.userId=users.userId`, (error, result)=> {
         if (error) throw error; 
         res.send(result);
     })
 })
 
-app.post('/api/newUser', (req, res) => {
+app.post('/api/newUser', authenticateToken, (req, res) => {
     const userId = req.body.userId
     const username = req.body.username 
     const dateTimeJoined = new Date().toLocaleString('en-US', {timeZone: 'Asia/Singapore'})
@@ -28,7 +30,7 @@ app.post('/api/newUser', (req, res) => {
     })
 })
 
-app.post('/api/newRequest', (req,res) => {
+app.post('/api/newRequest', authenticateToken, (req,res) => {
     const uuid = nanoid()
     const userId = req.body.userId
     const reason = req.body.reason 
@@ -41,32 +43,32 @@ app.post('/api/newRequest', (req,res) => {
     })
 })
 
-app.delete('/api/deleteRequest', (req, res) => {
-    const uuid = req.body.uuid 
+app.delete('/api/deleteRequest/:id', authenticateToken, (req, res) => {
+    const uuid = req.params.id 
     sql.query(`delete from requests where uuid = '${uuid}'`, (error, results) => {
         if (error) throw error; 
         res.send(results)
     })
 })
 
-app.post('/api/updateStatus', (req, res) => {
+app.post('/api/updateStatus', authenticateToken, (req, res) => {
     const uuid = req.body.uuid
     const status = req.body.status 
-    sql.query(`update requests set status = '${status}' where uuid = ${uuid}`, (error, results) => {
+    sql.query(`update requests set status = '${status}' where uuid = '${uuid}'`, (error, results) => {
         if (error) throw error;
         res.send(results)
     })
 })
 
-app.get('/api/availableSlots', (req, res) => {
-    const date = req.query.date 
+app.get('/api/availableSlots/:id', authenticateToken, (req, res) => {
+    const date = req.params.id 
     sql.query(`select * from slots where currentDate = '${date}'`, (error, results) => {
         if (error) throw error; 
         res.send(results)
     })
 })
 
-app.post('/api/reduceCount', (req, res) => {
+app.post('/api/reduceCount', authenticateToken, (req, res) => {
     const date = req.body.date
     sql.query(`update slots set availableSlots = availableSlots - 1 where currentDate = '${date}';`, (error, results) => {
         if (error) throw error;
@@ -74,15 +76,15 @@ app.post('/api/reduceCount', (req, res) => {
     })
 })
 
-app.get('/api/getMyRequests', (req, res) => {
-    const userId = req.query.userId
+app.get('/api/getMyRequests/:id', authenticateToken, (req, res) => {
+    const userId = req.params.id
     sql.query(`select * from requests where userId = ${userId}`, (error, results) => {
         if (error) throw error; 
         res.send(results)
     })
 })
 
-app.get('/api/checkDuplicate', (req, res) => {
+app.get('/api/checkDuplicate', authenticateToken, (req, res) => {
     const userId = req.query.userId
     const date = req.query.date 
     sql.query(`select count(dateApplied) from requests where userId = ${userId} and dateApplied = '${date}'`, (error, results) => {
@@ -90,6 +92,25 @@ app.get('/api/checkDuplicate', (req, res) => {
         res.send(results)
     })
 })
+
+app.post('/api/getToken', (req, res) => {
+    const username = req.body.username
+    const user = { user: username}
+
+    const accessToken = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET) 
+    res.json({accessToken: accessToken})
+})
+
+function authenticateToken(req, res, next) {
+    const authHeader= req.headers['authorization']
+    const token = authHeader && authHeader.split(' ')[1] 
+    if (token == null) return res.sendStatus(401) 
+
+    jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, user) => {
+        if (err) return res.sendStatus(403) 
+        next()
+    })
+}
 
 app.listen(port, () => {
     console.log('Server is up on port ' + port)
