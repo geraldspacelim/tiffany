@@ -1,5 +1,6 @@
 const mysql = require("mysql")
 
+// to change
 var connection = mysql.createPool({
     host: "209.97.175.18", 
     user: "admin", 
@@ -7,14 +8,6 @@ var connection = mysql.createPool({
     port: 3306, 
     database: "bookingbot"
 })
-
-// var connection = mysql.createConnection({
-//     host: process.env.HOST, 
-//     user: process.env.USER, 
-//     password: process.env.PASSWORD,
-//     port: process.env.PORT, 
-//     database: process.env.DATABASE
-// })
 
 connection.getConnection((err, connection) => {
     if(err) throw err; 

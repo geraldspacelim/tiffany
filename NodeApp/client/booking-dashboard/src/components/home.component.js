@@ -36,7 +36,7 @@ export default class Home extends Component {
     }
 
     fetchData() {
-      axios.get('http://localhost:3306/api/allRequests', { headers: {"Authorization" : `Bearer ${process.env.REACT_APP_ACCESS_TOKEN}`} })
+      axios.get('/api/allRequests', { headers: {"Authorization" : `Bearer ${process.env.REACT_APP_ACCESS_TOKEN}`} })
       .then(response => {
           console.log(response)
           this.setState({ requests: response.data})
@@ -47,7 +47,7 @@ export default class Home extends Component {
     }
 
     deleteRequest(uuid) {
-      axios.delete('http://localhost:3306/api/deleteRequest/' + uuid, { headers: {"Authorization" : `Bearer ${process.env.REACT_APP_ACCESS_TOKEN}`} })
+      axios.delete('/api/deleteRequest/' + uuid, { headers: {"Authorization" : `Bearer ${process.env.REACT_APP_ACCESS_TOKEN}`} })
       .then(response => { console.log(response.data)});
 
       this.setState({
@@ -64,7 +64,7 @@ export default class Home extends Component {
         uuid: uuid, 
         status: status
       }
-      axios.post('http://localhost:3306/api/updateStatus', data, { headers: {"Authorization" : `Bearer ${process.env.REACT_APP_ACCESS_TOKEN}`} })
+      axios.post('/api/updateStatus', data, { headers: {"Authorization" : `Bearer ${process.env.REACT_APP_ACCESS_TOKEN}`} })
       .then(response  => {
         if (response && status==="Approved") {
           this.updateCount(dateApplied)
@@ -91,7 +91,7 @@ export default class Home extends Component {
       }
       axios
         .post(
-          `http://localhost:3306/api/reduceCount`,
+          `/api/reduceCount`,
           data, { headers: {"Authorization" : `Bearer ${process.env.REACT_APP_ACCESS_TOKEN}`} }
         ).then(response => {
           console.log(response.data)
